@@ -33,7 +33,26 @@ class Game {
  *yes(p,title){return (yield* this.ask(p,title,[{id:'yes',label:'Yes'},{id:'no',label:'Decline'}]))==='yes';}
  choose(id){if(!this.prompt||!this.prompt.options.some(o=>o.id===id))throw Error('That choice is not available.');this.journal.push({choice:id});this.prompt=this.iterator.next(id).value;return this.prompt;}
  save(){return {version:1,config:this.config,journal:this.journal};}
- static restore(save){if(save.version!==1)throw Error('Unsupported save version');const g=new Game(save.config);for(const entry of save.journal){if(entry.choice!==undefined)g.choose(entry.choice);else g.anytime(entry.player,entry.card);}return g;}
+ static restore(save){
+  if(!save||save.version!==1)throw Error('Unsupported save version');
+  // Realtime Database omits empty arrays and may return numeric-keyed objects.
+  // Normalize both representations before replaying the deterministic journal.
+  let entries;
+  if(save.journal==null)entries=[];
+  else if(Array.isArray(save.journal))entries=save.journal;
+  else if(typeof save.journal==='object'){
+   const keys=Object.keys(save.journal);
+   if(keys.some(k=>!/^(0|[1-9][0-9]*)$/.test(k)))throw Error('Invalid save journal');
+   entries=keys.sort((a,b)=>Number(a)-Number(b)).map(k=>save.journal[k]);
+  }else throw Error('Invalid save journal');
+  const g=new Game(save.config);
+  for(const entry of entries){
+   if(!entry||typeof entry!=='object')throw Error('Invalid save journal entry');
+   if(entry.choice!==undefined)g.choose(entry.choice);
+   else g.anytime(entry.player,entry.card);
+  }
+  return g;
+ }
  anytime(pid,cid){const p=this.players[pid],c=p.built.find(c=>c.id===cid);if(this.over||this.muted||!c||c.name!=='R&D Storage'||c.boxes<1)throw Error('R&D Storage is unavailable.');c.boxes--;this.draw(p,1);this.journal.push({player:pid,card:cid});this.note(p.name+': R&D Storage draws a card.');this.prompt=this.iterator.next({refresh:true}).value;}
  *discardCards(p,n){for(let i=0;i<n&&p.hand.length;i++){const id=yield* this.ask(p,'Choose a Building card to discard',()=>p.hand.map(c=>this.opt(c)));const ix=p.hand.findIndex(c=>c.id===id);this.buildDiscard.push(...p.hand.splice(ix,1));this.gain(p,'money',this.count(p,'Recycling'));}}
  *supply(p,n,only=null){for(let i=0;i<n;i++){let targets=only?[only]:p.built;if(!targets.length)return;const id=yield* this.ask(p,'Place a supply box',targets.map(c=>this.opt(c,`${c.name} · ${c.boxes} boxes`)));targets.find(c=>c.id===id).boxes++;}}
