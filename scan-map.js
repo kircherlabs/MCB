@@ -1,0 +1,1 @@
+globalThis.MCB_BOARDS = {"Dr. White": "assets/scans/Board-1.jpg", "Dr. Banerjee": "assets/scans/Board-2.jpg", "Dr. Brain": "assets/scans/Board-3.jpg", "Dr. Dibson": "assets/scans/Board-4.jpg", "Dr. Kaneko": "assets/scans/Board-5.jpg"};
